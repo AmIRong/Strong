@@ -67,6 +67,19 @@ function dhtmlspecialchars($string, $flags = null) {
     return $string;
 }
 
+function setglobal($key , $value, $group = null) {
+    global $_G;
+    $key = explode('/', $group === null ? $key : $group.'/'.$key);
+    $p = &$_G;
+    foreach ($key as $k) {
+        if(!isset($p[$k]) || !is_array($p[$k])) {
+            $p[$k] = array();
+        }
+        $p = &$p[$k];
+    }
+    $p = $value;
+    return true;
+}
 
 
 

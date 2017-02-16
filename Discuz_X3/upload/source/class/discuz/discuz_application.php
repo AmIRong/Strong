@@ -318,5 +318,31 @@ class discuz_application extends discuz_base{
 	
 	}
 	
+	private function _init_output() {
+	
+	
+	    if($this->config['security']['attackevasive'] && (!defined('CURSCRIPT') || !in_array($this->var['mod'], array('seccode', 'secqaa', 'swfupload')) && !defined('DISABLEDEFENSE'))) {
+	        require_once libfile('misc/security', 'include');
+	    }
+	
+	    if(!empty($_SERVER['HTTP_ACCEPT_ENCODING']) && strpos($_SERVER['HTTP_ACCEPT_ENCODING'], 'gzip') === false) {
+	        $this->config['output']['gzip'] = false;
+	    }
+	
+	    $allowgzip = $this->config['output']['gzip'] && empty($this->var['inajax']) && $this->var['mod'] != 'attachment' && EXT_OBGZIP;
+	    setglobal('gzipcompress', $allowgzip);
+	
+	    if(!ob_start($allowgzip ? 'ob_gzhandler' : null)) {
+	        ob_start();
+	    }
+	
+	    setglobal('charset', $this->config['output']['charset']);
+	    define('CHARSET', $this->config['output']['charset']);
+	    if($this->config['output']['forceheader']) {
+	        @header('Content-Type: text/html; charset='.CHARSET);
+	    }
+	
+	}
+	
 
 }
