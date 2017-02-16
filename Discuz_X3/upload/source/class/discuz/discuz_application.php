@@ -389,5 +389,100 @@ class discuz_application extends discuz_base{
 	
 	}
 	
+	private function _init_user() {
+	    if($this->init_user) {
+	        if($auth = getglobal('auth', 'cookie')) {
+	            $auth = daddslashes(explode("\t", authcode($auth, 'DECODE')));
+	        }
+	        list($discuz_pw, $discuz_uid) = empty($auth) || count($auth) < 2 ? array('', '') : $auth;
+	
+	        if($discuz_uid) {
+	            $user = getuserbyuid($discuz_uid, 1);
+	        }
+	
+	        if(!empty($user) && $user['password'] == $discuz_pw) {
+	            if(isset($user['_inarchive'])) {
+	                C::t('common_member_archive')->move_to_master($discuz_uid);
+	            }
+	            $this->var['member'] = $user;
+	        } else {
+	            $user = array();
+	            $this->_init_guest();
+	        }
+	
+	        if($user && $user['groupexpiry'] > 0 && $user['groupexpiry'] < TIMESTAMP) {
+	            $memberfieldforum = C::t('common_member_field_forum')->fetch($discuz_uid);
+	            $groupterms = dunserialize($memberfieldforum['groupterms']);
+	            if(!empty($groupterms['main'])) {
+	                C::t("common_member")->update($user['uid'], array('groupexpiry'=> 0, 'groupid' => $groupterms['main']['groupid'], 'adminid' => $groupterms['main']['adminid']));
+	                $user['groupid'] = $groupterms['main']['groupid'];
+	                $user['adminid'] = $groupterms['main']['adminid'];
+	                unset($groupterms['main'], $groupterms['ext'][$this->var['member']['groupid']]);
+	                $this->var['member'] = $user;
+	                C::t('common_member_field_forum')->update($discuz_uid, array('groupterms' => serialize($groupterms)));
+	            } elseif((getgpc('mod') != 'spacecp' || CURSCRIPT != 'home') && CURSCRIPT != 'member') {
+	                dheader('location: home.php?mod=spacecp&ac=usergroup&do=expiry');
+	            }
+	        }
+	
+	        if($user && $user['freeze'] && (getgpc('mod') != 'spacecp' && getgpc('mod') != 'misc'  || CURSCRIPT != 'home') && CURSCRIPT != 'member' && CURSCRIPT != 'misc') {
+	            dheader('location: home.php?mod=spacecp&ac=profile&op=password');
+	        }
+	
+	        $this->cachelist[] = 'usergroup_'.$this->var['member']['groupid'];
+	        if($user && $user['adminid'] > 0 && $user['groupid'] != $user['adminid']) {
+	            $this->cachelist[] = 'admingroup_'.$this->var['member']['adminid'];
+	        }
+	
+	    } else {
+	        $this->_init_guest();
+	    }
+	    setglobal('groupid', getglobal('groupid', 'member'));
+	    !empty($this->cachelist) && loadcache($this->cachelist);
+	
+	    if($this->var['member'] && $this->var['group']['radminid'] == 0 && $this->var['member']['adminid'] > 0 && $this->var['member']['groupid'] != $this->var['member']['adminid'] && !empty($this->var['cache']['admingroup_'.$this->var['member']['adminid']])) {
+	        $this->var['group'] = array_merge($this->var['group'], $this->var['cache']['admingroup_'.$this->var['member']['adminid']]);
+	    }
+	
+	    if($this->var['group']['allowmakehtml'] && isset($_GET['_makehtml'])) {
+	        $this->var['makehtml'] = 1;
+	        $this->_init_guest();
+	        loadcache(array('usergroup_7'));
+	        $this->var['group'] = $this->var['cache']['usergroup_7'];
+	        unset($this->var['inajax']);
+	    }
+	
+	    if(empty($this->var['cookie']['lastvisit'])) {
+	        $this->var['member']['lastvisit'] = TIMESTAMP - 3600;
+	        dsetcookie('lastvisit', TIMESTAMP - 3600, 86400 * 30);
+	    } else {
+	        $this->var['member']['lastvisit'] = $this->var['cookie']['lastvisit'];
+	    }
+	
+	    setglobal('uid', getglobal('uid', 'member'));
+	    setglobal('username', getglobal('username', 'member'));
+	    setglobal('adminid', getglobal('adminid', 'member'));
+	    setglobal('groupid', getglobal('groupid', 'member'));
+	    if($this->var['member']['newprompt']) {
+	        $this->var['member']['newprompt_num'] = C::t('common_member_newprompt')->fetch($this->var['member']['uid']);
+	        $this->var['member']['newprompt_num'] = unserialize($this->var['member']['newprompt_num']['data']);
+	        $this->var['member']['category_num'] = helper_notification::get_categorynum($this->var['member']['newprompt_num']);
+	    }
+	
+	}
+	
+	private function _init_guest() {
+	    $username = '';
+	    $groupid = 7;
+	    if(!empty($this->var['cookie']['con_auth_hash']) && ($openid = authcode($this->var['cookie']['con_auth_hash']))) {
+	        $this->var['connectguest'] = 1;
+	        $username = 'QQ_'.substr($openid, -6);
+	        $this->var['setting']['cacheindexlife'] = 0;
+	        $this->var['setting']['cachethreadlife'] = 0;
+	        $groupid = $this->var['setting']['connect']['guest_groupid'] ? $this->var['setting']['connect']['guest_groupid'] : $this->var['setting']['newusergroupid'];
+	    }
+	    setglobal('member', array( 'uid' => 0, 'username' => $username, 'adminid' => 0, 'groupid' => $groupid, 'credits' => 0, 'timeoffset' => 9999));
+	}
+	
 
 }
