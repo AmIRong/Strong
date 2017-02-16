@@ -1,11 +1,6 @@
 <?php
 
-/**
- *      [Discuz!] (C)2001-2099 Comsenz Inc.
- *      This is NOT a freeware, use is subject to license terms
- *
- *      $Id: discuz_session.php 33707 2013-08-06 08:22:12Z andyzheng $
- */
+
 
 if(!defined('IN_DISCUZ')) {
 	exit('Access Denied');

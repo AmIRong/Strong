@@ -1,11 +1,6 @@
 <?php
 
-/**
- *      [Discuz!] (C)2001-2099 Comsenz Inc.
- *      This is NOT a freeware, use is subject to license terms
- *
- *      $Id: class_cloud.php 34000 2013-09-17 08:52:48Z nemohou $
- */
+
 
 if(!defined('IN_DISCUZ')) {
 	exit('Access Denied');

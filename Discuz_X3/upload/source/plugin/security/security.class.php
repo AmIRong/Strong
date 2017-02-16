@@ -1,11 +1,6 @@
 <?php
 
-/**
- *		[Discuz! X] (C)2001-2099 Comsenz Inc.
- *		This is NOT a freeware, use is subject to license terms
- *
- *		$Id: security.class.php 33945 2013-09-05 01:48:02Z nemohou $
- */
+
 
 
 if(!defined('IN_DISCUZ')) {

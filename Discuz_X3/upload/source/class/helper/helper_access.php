@@ -1,10 +1,5 @@
 <?php
-/**
- *      [Discuz!] (C)2001-2099 Comsenz Inc.
- *      This is NOT a freeware, use is subject to license terms
- *
- *      $Id: helper_access.php 28057 2012-02-21 22:19:33Z zhengqingpeng $
- */
+
 
 if(!defined('IN_DISCUZ')) {
 	exit('Access Denied');

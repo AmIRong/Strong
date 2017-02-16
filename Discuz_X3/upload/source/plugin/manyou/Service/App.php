@@ -1,11 +1,6 @@
 <?php
 
-/**
- *      [Discuz!] (C)2001-2099 Comsenz Inc.
- *      This is NOT a freeware, use is subject to license terms
- *
- *      $Id: App.php 34007 2013-09-18 06:43:17Z nemohou $
- */
+
 
 if(!defined('IN_DISCUZ')) {
 	exit('Access Denied');

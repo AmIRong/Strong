@@ -1,11 +1,6 @@
 <?php
 
-/**
- *      [Discuz!] (C)2001-2099 Comsenz Inc.
- *      This is NOT a freeware, use is subject to license terms
- *
- *      $Id: table_common_syscache.php 31119 2012-07-18 04:21:20Z zhangguosheng $
- */
+
 
 if(!defined('IN_DISCUZ')) {
 	exit('Access Denied');
