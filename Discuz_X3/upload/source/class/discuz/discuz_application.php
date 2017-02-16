@@ -344,5 +344,27 @@ class discuz_application extends discuz_base{
 	
 	}
 	
+	public function init() {
+	    if(!$this->initated) {
+	        $this->_init_db();
+	        $this->_init_setting();
+	        $this->_init_user();
+	        $this->_init_session();
+	        $this->_init_mobile();
+	        $this->_init_cron();
+	        $this->_init_misc();
+	    }
+	    $this->initated = true;
+	}
+	private function _init_db() {
+	    if($this->init_db) {
+	        $driver = function_exists('mysql_connect') ? 'db_driver_mysql' : 'db_driver_mysqli';
+	        if(getglobal('config/db/slave')) {
+	            $driver = function_exists('mysql_connect') ? 'db_driver_mysql_slave' : 'db_driver_mysqli_slave';
+	        }
+	        DB::init($driver, $this->config['db']);
+	    }
+	}
+	
 
 }
