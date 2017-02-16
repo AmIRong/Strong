@@ -158,4 +158,16 @@ function table_name($tablename) {
     }
     return $this->tablepre.$tablename;
 }
+
+function errno() {
+    return intval(($this->curlink) ? mysql_errno($this->curlink) : mysql_errno());
+}
+
+function halt($message = '', $code = 0, $sql = '') {
+    throw new DbException($message, $code, $sql);
+}
+
+function error() {
+    return (($this->curlink) ? mysql_error($this->curlink) : mysql_error());
+}
 }

@@ -483,14 +483,7 @@ class discuz_application extends discuz_base{
 	    }
 	    setglobal('member', array( 'uid' => 0, 'username' => $username, 'adminid' => 0, 'groupid' => $groupid, 'credits' => 0, 'timeoffset' => 9999));
 	}
-	private function _init_cron() {
-	    $ext = empty($this->config['remote']['on']) || empty($this->config['remote']['cron']) || APPTYPEID == 200;
-	    if($this->init_cron && $this->init_setting && $ext) {
-	        if($this->var['cache']['cronnextrun'] <= TIMESTAMP) {
-	            discuz_cron::run();
-	        }
-	    }
-	}
+
 	
 	private function _init_session() {
 	
@@ -534,5 +527,244 @@ class discuz_application extends discuz_base{
 	    }
 	}
 	
+	private function _init_mobile() {
+	    if(!$this->init_mobile) {
+	        return false;
+	    }
+	
+	    if(!$this->var['setting'] || !$this->var['setting']['mobile']['allowmobile'] || !is_array($this->var['setting']['mobile']) || IS_ROBOT) {
+	        $nomobile = true;
+	        $unallowmobile = true;
+	    }
+	
+	
+	    $mobile = getgpc('mobile');
+	    $mobileflag = isset($this->var['mobiletpl'][$mobile]);
+	    if($mobile === 'no') {
+	        dsetcookie('mobile', 'no', 3600);
+	        $nomobile = true;
+	    } elseif($this->var['cookie']['mobile'] == 'no' && $mobileflag) {
+	        checkmobile();
+	        dsetcookie('mobile', '');
+	    } elseif($this->var['cookie']['mobile'] == 'no') {
+	        $nomobile = true;
+	    } elseif(!($mobile_ = checkmobile())) {
+	        $nomobile = true;
+	    }
+	    if(!$mobile || $mobile == 'yes') {
+	        $mobile = isset($mobile_) ? $mobile_ : 2;
+	    }
+	
+	    if(!$this->var['mobile'] && !$unallowmobile) {
+	        if($mobileflag) {
+	            dheader("Location:misc.php?mod=mobile");
+	        }
+	    }
+	
+	    if($nomobile || (!$this->var['setting']['mobile']['mobileforward'] && !$mobileflag)) {
+	        if($_SERVER['HTTP_HOST'] == $this->var['setting']['domain']['app']['mobile'] && $this->var['setting']['domain']['app']['default']) {
+	            dheader("Location:http://".$this->var['setting']['domain']['app']['default'].$_SERVER['REQUEST_URI']);
+	            return false;
+	        } else {
+	            return false;
+	        }
+	    }
+	
+	    if(strpos($this->var['setting']['domain']['defaultindex'], CURSCRIPT) !== false && CURSCRIPT != 'forum' && !$_GET['mod']) {
+	        if($this->var['setting']['domain']['app']['mobile']) {
+	            $mobileurl = 'http://'.$this->var['setting']['domain']['app']['mobile'];
+	        } else {
+	            if($this->var['setting']['domain']['app']['forum']) {
+	                $mobileurl = 'http://'.$this->var['setting']['domain']['app']['forum'].'?mobile=yes';
+	            } else {
+	                $mobileurl = $this->var['siteurl'].'forum.php?mobile=yes';
+	            }
+	        }
+	        dheader("location:$mobileurl");
+	    }
+	    if($mobile === '3' && empty($this->var['setting']['mobile']['wml'])) {
+	        return false;
+	    }
+	    define('IN_MOBILE', isset($this->var['mobiletpl'][$mobile]) ? $mobile : '2');
+	    setglobal('gzipcompress', 0);
+	
+	    $arr = array();
+	    foreach(array_keys($this->var['mobiletpl']) as $mobiletype) {
+	        $arr[] = '&mobile='.$mobiletype;
+	        $arr[] = 'mobile='.$mobiletype;
+	    }
+	    $arr = array_merge(array(strstr($_SERVER['QUERY_STRING'], '&simpletype'), strstr($_SERVER['QUERY_STRING'], 'simpletype')), $arr);
+	    $query_sting_tmp = str_replace($arr, '', $_SERVER['QUERY_STRING']);
+	    $this->var['setting']['mobile']['nomobileurl'] = ($this->var['setting']['domain']['app']['forum'] ? 'http://'.$this->var['setting']['domain']['app']['forum'].'/' : $this->var['siteurl']).$this->var['basefilename'].($query_sting_tmp ? '?'.$query_sting_tmp.'&' : '?').'mobile=no';
+	
+	    $this->var['setting']['lazyload'] = 0;
+	
+	    if('utf-8' != CHARSET) {
+	        if(strtolower($_SERVER['REQUEST_METHOD']) === 'post') {
+	            foreach($_POST AS $pk => $pv) {
+	                if(!is_numeric($pv)) {
+	                    $_GET[$pk] = $_POST[$pk] = $this->mobile_iconv_recurrence($pv);
+	                    if(!empty($this->var['config']['input']['compatible'])) {
+	                        $this->var['gp_'.$pk] = daddslashes($_GET[$pk]);
+	                    }
+	                }
+	            }
+	        }
+	    }
+	
+	
+	    if(!$this->var['setting']['mobile']['mobilesimpletype']) {
+	        $this->var['setting']['imagemaxwidth'] = 224;
+	    }
+	
+	    $this->var['setting']['regstatus'] = $this->var['setting']['mobile']['mobileregister'] ? $this->var['setting']['regstatus'] : 0 ;
+	
+	    $this->var['setting']['thumbquality'] = 50;
+	    $this->var['setting']['avatarmethod'] = 0;
+	
+	    $this->var['setting']['mobile']['simpletypeurl'] = array();
+	    $this->var['setting']['mobile']['simpletypeurl'][0] = $this->var['siteurl'].$this->var['basefilename'].($query_sting_tmp ? '?'.$query_sting_tmp.'&' : '?').'mobile=1&simpletype=no';
+	    $this->var['setting']['mobile']['simpletypeurl'][1] =  $this->var['siteurl'].$this->var['basefilename'].($query_sting_tmp ? '?'.$query_sting_tmp.'&' : '?').'mobile=1&simpletype=yes';
+	    $this->var['setting']['mobile']['simpletypeurl'][2] =  $this->var['siteurl'].$this->var['basefilename'].($query_sting_tmp ? '?'.$query_sting_tmp.'&' : '?').'mobile=2';
+	    unset($query_sting_tmp);
+	    ob_start();
+	}
+	
+	private function _init_cron() {
+	    $ext = empty($this->config['remote']['on']) || empty($this->config['remote']['cron']) || APPTYPEID == 200;
+	    if($this->init_cron && $this->init_setting && $ext) {
+	        if($this->var['cache']['cronnextrun'] <= TIMESTAMP) {
+	            discuz_cron::run();
+	        }
+	    }
+	}
+	
+	private function _init_misc() {
+	    if($this->config['security']['urlxssdefend'] && !defined('DISABLEXSSCHECK')) {
+	        $this->_xss_check();
+	    }
+	    if(!$this->init_misc) {
+	        return false;
+	    }
+	    lang('core');
+	    if($this->init_setting && $this->init_user) {
+	        if(!isset($this->var['member']['timeoffset']) || $this->var['member']['timeoffset'] == 9999 || $this->var['member']['timeoffset'] === '') {
+	            $this->var['member']['timeoffset'] = $this->var['setting']['timeoffset'];
+	        }
+	    }
+	    $timeoffset = $this->init_setting ? $this->var['member']['timeoffset'] : $this->var['setting']['timeoffset'];
+	    $this->var['timenow'] = array(
+	        'time' => dgmdate(TIMESTAMP),
+	        'offset' => $timeoffset >= 0 ? ($timeoffset == 0 ? '' : '+'.$timeoffset) : $timeoffset
+	    );
+	    $this->timezone_set($timeoffset);
+	    $this->var['formhash'] = formhash();
+	    define('FORMHASH', $this->var['formhash']);
+	    if($this->init_user) {
+	        $allowvisitflag = in_array(CURSCRIPT, array('member')) || defined('ALLOWGUEST') && ALLOWGUEST;
+	        if($this->var['group'] && isset($this->var['group']['allowvisit']) && !$this->var['group']['allowvisit']) {
+	            if($this->var['uid'] && !$allowvisitflag) {
+	                if(!defined('IN_MOBILE_API')) {
+	                    showmessage('user_banned');
+	                } else {
+	                    mobile_core::result(array('error' => 'user_banned'));
+	                }
+	            } elseif((!defined('ALLOWGUEST') || !ALLOWGUEST) && !in_array(CURSCRIPT, array('member', 'api')) && !$this->var['inajax']) {
+	                if(!defined('IN_MOBILE_API')) {
+	                    dheader('location: member.php?mod=logging&action=login&referer='.rawurlencode($this->var['siteurl'].$this->var['basefilename'].($_SERVER['QUERY_STRING'] ? '?'.$_SERVER['QUERY_STRING'] : '')));
+	                } else {
+	                    mobile_core::result(array('error' => 'to_login'));
+	                }
+	            }
+	        }
+	        if(isset($this->var['member']['status']) && $this->var['member']['status'] == -1 && !$allowvisitflag) {
+	            if(!defined('IN_MOBILE_API')) {
+	                showmessage('user_banned');
+	            } else {
+	                mobile_core::result(array('error' => 'user_banned'));
+	            }
+	        }
+	    }
+	    if($this->var['setting']['ipaccess'] && !ipaccess($this->var['clientip'], $this->var['setting']['ipaccess'])) {
+	        if(!defined('IN_MOBILE_API')) {
+	            showmessage('user_banned');
+	        } else {
+	            mobile_core::result(array('error' => 'user_banned'));
+	        }
+	    }
+	    if($this->var['setting']['bbclosed']) {
+	        if($this->var['uid'] && ($this->var['group']['allowvisit'] == 2 || $this->var['groupid'] == 1)) {
+	        } elseif(in_array(CURSCRIPT, array('admin', 'member', 'api')) || defined('ALLOWGUEST') && ALLOWGUEST) {
+	        } else {
+	            $closedreason = C::t('common_setting')->fetch('closedreason');
+	            $closedreason = str_replace(':', '&#58;', $closedreason);
+	            if(!defined('IN_MOBILE_API')) {
+	                showmessage($closedreason ? $closedreason : 'board_closed', NULL, array('adminemail' => $this->var['setting']['adminemail']), array('login' => 1));
+	            } else {
+	                mobile_core::result(array('error' => $closedreason ? $closedreason : 'board_closed'));
+	            }
+	        }
+	    }
+	    if(CURSCRIPT != 'admin' && !(in_array($this->var['mod'], array('logging', 'seccode')))) {
+	        periodscheck('visitbanperiods');
+	    }
+	    if(defined('IN_MOBILE')) {
+	        $this->var['tpp'] = $this->var['setting']['mobile']['mobiletopicperpage'] ? intval($this->var['setting']['mobile']['mobiletopicperpage']) : 20;
+	        $this->var['ppp'] = $this->var['setting']['mobile']['mobilepostperpage'] ? intval($this->var['setting']['mobile']['mobilepostperpage']) : 5;
+	    } else {
+	        $this->var['tpp'] = $this->var['setting']['topicperpage'] ? intval($this->var['setting']['topicperpage']) : 20;
+	        $this->var['ppp'] = $this->var['setting']['postperpage'] ? intval($this->var['setting']['postperpage']) : 10;
+	    }
+	    if($this->var['setting']['nocacheheaders']) {
+	        @header("Expires: -1");
+	        @header("Cache-Control: no-store, private, post-check=0, pre-check=0, max-age=0", FALSE);
+	        @header("Pragma: no-cache");
+	    }
+	    if($this->session->isnew && $this->var['uid']) {
+	        updatecreditbyaction('daylogin', $this->var['uid']);
+	        include_once libfile('function/stat');
+	        updatestat('login', 1);
+	        if(defined('IN_MOBILE')) {
+	            updatestat('mobilelogin', 1);
+	        }
+	        if($this->var['setting']['connect']['allow'] && $this->var['member']['conisbind']) {
+	            updatestat('connectlogin', 1);
+	        }
+	    }
+	    if(isset($this->var['member']['conisbind']) && $this->var['member']['conisbind'] && $this->var['setting'] && $this->var['setting']['connect']['newbiespan'] !== '') {
+	        $this->var['setting']['newbiespan'] = $this->var['setting']['connect']['newbiespan'];
+	    }
+	    $lastact = TIMESTAMP."\t".dhtmlspecialchars(basename($this->var['PHP_SELF']))."\t".dhtmlspecialchars($this->var['mod']);
+	    dsetcookie('lastact', $lastact, 86400);
+	    setglobal('currenturl_encode', base64_encode('http://'.$_SERVER['HTTP_HOST'].$_SERVER['REQUEST_URI']));
+	    if((!empty($_GET['fromuid']) || !empty($_GET['fromuser'])) && ($this->var['setting']['creditspolicy']['promotion_visit'] || $this->var['setting']['creditspolicy']['promotion_register'])) {
+	        require_once libfile('misc/promotion', 'include');
+	    }
+	    $this->var['seokeywords'] = !empty($this->var['setting']['seokeywords'][CURSCRIPT]) ? $this->var['setting']['seokeywords'][CURSCRIPT] : '';
+	    $this->var['seodescription'] = !empty($this->var['setting']['seodescription'][CURSCRIPT]) ? $this->var['setting']['seodescription'][CURSCRIPT] : '';
+	}
+	
+	private function _xss_check() {
+	    static $check = array('"', '>', '<', '\'', '(', ')', 'CONTENT-TRANSFER-ENCODING');
+	    if(isset($_GET['formhash']) && $_GET['formhash'] !== formhash()) {
+	        system_error('request_tainting');
+	    }
+	    if($_SERVER['REQUEST_METHOD'] == 'GET' ) {
+	        $temp = $_SERVER['REQUEST_URI'];
+	    } elseif(empty ($_GET['formhash'])) {
+	        $temp = $_SERVER['REQUEST_URI'].file_get_contents('php://input');
+	    } else {
+	        $temp = '';
+	    }
+	    if(!empty($temp)) {
+	        $temp = strtoupper(urldecode(urldecode($temp)));
+	        foreach ($check as $str) {
+	            if(strpos($temp, $str) !== false) {
+	                system_error('request_tainting');
+	            }
+	        }
+	    }
+	    return true;
+	}
 
 }
