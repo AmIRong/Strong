@@ -366,5 +366,28 @@ class discuz_application extends discuz_base{
 	    }
 	}
 	
+	private function _init_setting() {
+	    if($this->init_setting) {
+	        if(empty($this->var['setting'])) {
+	            $this->cachelist[] = 'setting';
+	        }
+	
+	        if(empty($this->var['style'])) {
+	            $this->cachelist[] = 'style_default';
+	        }
+	
+	        if(!isset($this->var['cache']['cronnextrun'])) {
+	            $this->cachelist[] = 'cronnextrun';
+	        }
+	    }
+	
+	    !empty($this->cachelist) && loadcache($this->cachelist);
+	
+	    if(!is_array($this->var['setting'])) {
+	        $this->var['setting'] = array();
+	    }
+	
+	}
+	
 
 }

@@ -94,5 +94,60 @@ function getglobal($key, $group = null) {
     return $v;
 }
 
+function loadcache($cachenames, $force = false) {
+    global $_G;
+    static $loadedcache = array();
+    $cachenames = is_array($cachenames) ? $cachenames : array($cachenames);
+    $caches = array();
+    foreach ($cachenames as $k) {
+        if(!isset($loadedcache[$k]) || $force) {
+            $caches[] = $k;
+            $loadedcache[$k] = true;
+        }
+    }
+
+    if(!empty($caches)) {
+        $cachedata = C::t('common_syscache')->fetch_all($caches);
+        foreach($cachedata as $cname => $data) {
+            if($cname == 'setting') {
+                $_G['setting'] = $data;
+            } elseif($cname == 'usergroup_'.$_G['groupid']) {
+                $_G['cache'][$cname] = $_G['group'] = $data;
+            } elseif($cname == 'style_default') {
+                $_G['cache'][$cname] = $_G['style'] = $data;
+            } elseif($cname == 'grouplevels') {
+                $_G['grouplevels'] = $data;
+            } else {
+                $_G['cache'][$cname] = $data;
+            }
+        }
+    }
+    return true;
+}
+
+function memory($cmd, $key='', $value='', $ttl = 0, $prefix = '') {
+    if($cmd == 'check') {
+        return  C::memory()->enable ? C::memory()->type : '';
+    } elseif(C::memory()->enable && in_array($cmd, array('set', 'get', 'rm', 'inc', 'dec'))) {
+        if(defined('DISCUZ_DEBUG') && DISCUZ_DEBUG) {
+            if(is_array($key)) {
+                foreach($key as $k) {
+                    C::memory()->debug[$cmd][] = ($cmd == 'get' || $cmd == 'rm' ? $value : '').$prefix.$k;
+                }
+            } else {
+                C::memory()->debug[$cmd][] = ($cmd == 'get' || $cmd == 'rm' ? $value : '').$prefix.$key;
+            }
+        }
+        switch ($cmd) {
+            case 'set': return C::memory()->set($key, $value, $ttl, $prefix); break;
+            case 'get': return C::memory()->get($key, $value); break;
+            case 'rm': return C::memory()->rm($key, $value); break;
+            case 'inc': return C::memory()->inc($key, $value ? $value : 1); break;
+            case 'dec': return C::memory()->dec($key, $value ? $value : -1); break;
+        }
+    }
+    return null;
+}
+
 
 ?>
