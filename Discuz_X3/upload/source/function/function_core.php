@@ -149,5 +149,70 @@ function memory($cmd, $key='', $value='', $ttl = 0, $prefix = '') {
     return null;
 }
 
+function random($length, $numeric = 0) {
+    $seed = base_convert(md5(microtime().$_SERVER['DOCUMENT_ROOT']), 16, $numeric ? 10 : 35);
+    $seed = $numeric ? (str_replace('0', '', $seed).'012340567890') : ($seed.'zZ'.strtoupper($seed));
+    if($numeric) {
+        $hash = '';
+    } else {
+        $hash = chr(rand(1, 26) + rand(0, 1) * 32 + 64);
+        $length--;
+    }
+    $max = strlen($seed) - 1;
+    for($i = 0; $i < $length; $i++) {
+        $hash .= $seed{mt_rand(0, $max)};
+    }
+    return $hash;
+}
+
+function dsetcookie($var, $value = '', $life = 0, $prefix = 1, $httponly = false) {
+
+    global $_G;
+
+    $config = $_G['config']['cookie'];
+
+    $_G['cookie'][$var] = $value;
+    $var = ($prefix ? $config['cookiepre'] : '').$var;
+    $_COOKIE[$var] = $value;
+
+    if($value == '' || $life < 0) {
+        $value = '';
+        $life = -1;
+    }
+
+    if(defined('IN_MOBILE')) {
+        $httponly = false;
+    }
+
+    $life = $life > 0 ? getglobal('timestamp') + $life : ($life < 0 ? getglobal('timestamp') - 31536000 : 0);
+    $path = $httponly && PHP_VERSION < '5.2.0' ? $config['cookiepath'].'; HttpOnly' : $config['cookiepath'];
+
+    $secure = $_SERVER['SERVER_PORT'] == 443 ? 1 : 0;
+    if(PHP_VERSION < '5.2.0') {
+        setcookie($var, $value, $life, $path, $config['cookiedomain'], $secure);
+    } else {
+        setcookie($var, $value, $life, $path, $config['cookiedomain'], $secure, $httponly);
+    }
+}
+
+function ipbanned($onlineip) {
+    global $_G;
+
+    if($_G['setting']['ipaccess'] && !ipaccess($onlineip, $_G['setting']['ipaccess'])) {
+        return TRUE;
+    }
+
+    loadcache('ipbanned');
+    if(empty($_G['cache']['ipbanned'])) {
+        return FALSE;
+    } else {
+        if($_G['cache']['ipbanned']['expiration'] < TIMESTAMP) {
+            require_once libfile('function/cache');
+            updatecache('ipbanned');
+        }
+        return preg_match("/^(".$_G['cache']['ipbanned']['regexp'].")$/", $onlineip);
+    }
+}
+
 
 ?>

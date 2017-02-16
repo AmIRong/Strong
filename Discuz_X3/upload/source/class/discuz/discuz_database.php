@@ -160,6 +160,13 @@ class discuz_database {
 	    return $field;
 	}
 	
+	public static function fetch_first($sql, $arg = array(), $silent = false) {
+	    $res = self::query($sql, $arg, $silent, false);
+	    $ret = self::$db->fetch_array($res);
+	    self::$db->free_result($res);
+	    return $ret ? $ret : array();
+	}
+	
 }
 	
 class discuz_database_safecheck {

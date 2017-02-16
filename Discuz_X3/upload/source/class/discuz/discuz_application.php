@@ -483,6 +483,56 @@ class discuz_application extends discuz_base{
 	    }
 	    setglobal('member', array( 'uid' => 0, 'username' => $username, 'adminid' => 0, 'groupid' => $groupid, 'credits' => 0, 'timeoffset' => 9999));
 	}
+	private function _init_cron() {
+	    $ext = empty($this->config['remote']['on']) || empty($this->config['remote']['cron']) || APPTYPEID == 200;
+	    if($this->init_cron && $this->init_setting && $ext) {
+	        if($this->var['cache']['cronnextrun'] <= TIMESTAMP) {
+	            discuz_cron::run();
+	        }
+	    }
+	}
+	
+	private function _init_session() {
+	
+	    $sessionclose = !empty($this->var['setting']['sessionclose']);
+	    $this->session = $sessionclose ? new discuz_session_close() : new discuz_session();
+	
+	    if($this->init_session)	{
+	        $this->session->init($this->var['cookie']['sid'], $this->var['clientip'], $this->var['uid']);
+	        $this->var['sid'] = $this->session->sid;
+	        $this->var['session'] = $this->session->var;
+	
+	        if(!empty($this->var['sid']) && $this->var['sid'] != $this->var['cookie']['sid']) {
+	            dsetcookie('sid', $this->var['sid'], 86400);
+	        }
+	
+	        if($this->session->isnew) {
+	            if(ipbanned($this->var['clientip'])) {
+	                $this->session->set('groupid', 6);
+	            }
+	        }
+	
+	        if($this->session->get('groupid') == 6) {
+	            $this->var['member']['groupid'] = 6;
+	            if(!defined('IN_MOBILE_API')) {
+	                sysmessage('user_banned');
+	            } else {
+	                mobile_core::result(array('error' => 'user_banned'));
+	            }
+	        }
+	
+	        if($this->var['uid'] && !$sessionclose && ($this->session->isnew || ($this->session->get('lastactivity') + 600) < TIMESTAMP)) {
+	            $this->session->set('lastactivity', TIMESTAMP);
+	            if($this->session->isnew) {
+	                if($this->var['member']['lastip'] && $this->var['member']['lastvisit']) {
+	                    dsetcookie('lip', $this->var['member']['lastip'].','.$this->var['member']['lastvisit']);
+	                }
+	                C::t('common_member_status')->update($this->var['uid'], array('lastip' => $this->var['clientip'], 'port' => $this->var['remoteport'], 'lastvisit' => TIMESTAMP));
+	            }
+	        }
+	
+	    }
+	}
 	
 
 }
