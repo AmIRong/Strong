@@ -186,3 +186,14 @@ function loadforum($fid = null, $tid = null) {
 		$_G['widthauto'] = $_G['forum']['widthauto'];
 	}
 }
+
+function set_rssauth() {
+    global $_G;
+    if($_G['setting']['rssstatus'] && $_G['uid']) {
+        $auth = authcode($_G['uid']."\t".($_G['fid'] ? $_G['fid'] : '').
+            "\t".substr(md5($_G['member']['password']), 0, 8), 'ENCODE', md5($_G['config']['security']['authkey']));
+    } else {
+        $auth = '0';
+    }
+    $_G['rssauth'] = rawurlencode($auth);
+}

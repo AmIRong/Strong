@@ -445,5 +445,93 @@ function periodscheck($periods, $showmessage = 1) {
     return FALSE;
 }
 
+function runhooks($scriptextra = '') {
+    if(!defined('HOOKTYPE')) {
+        define('HOOKTYPE', !defined('IN_MOBILE') ? 'hookscript' : 'hookscriptmobile');
+    }
+    if(defined('CURMODULE')) {
+        global $_G;
+        if($_G['setting']['plugins']['func'][HOOKTYPE]['common']) {
+            hookscript('common', 'global', 'funcs', array(), 'common');
+        }
+        hookscript(CURMODULE, $_G['basescript'], 'funcs', array(), '', $scriptextra);
+    }
+}
+
+function hookscript($script, $hscript, $type = 'funcs', $param = array(), $func = '', $scriptextra = '') {
+    global $_G;
+    static $pluginclasses;
+    if($hscript == 'home') {
+        if($script == 'space') {
+            $scriptextra = !$scriptextra ? $_GET['do'] : $scriptextra;
+            $script = 'space'.(!empty($scriptextra) ? '_'.$scriptextra : '');
+        } elseif($script == 'spacecp') {
+            $scriptextra = !$scriptextra ? $_GET['ac'] : $scriptextra;
+            $script .= !empty($scriptextra) ? '_'.$scriptextra : '';
+        }
+    }
+    if(!isset($_G['setting'][HOOKTYPE][$hscript][$script][$type])) {
+        return;
+    }
+    if(!isset($_G['cache']['plugin'])) {
+        loadcache('plugin');
+    }
+    foreach((array)$_G['setting'][HOOKTYPE][$hscript][$script]['module'] as $identifier => $include) {
+        if($_G['pluginrunlist'] && !in_array($identifier, $_G['pluginrunlist'])) {
+            continue;
+        }
+        $hooksadminid[$identifier] = !$_G['setting'][HOOKTYPE][$hscript][$script]['adminid'][$identifier] || ($_G['setting'][HOOKTYPE][$hscript][$script]['adminid'][$identifier] && $_G['adminid'] > 0 && $_G['setting']['hookscript'][$hscript][$script]['adminid'][$identifier] >= $_G['adminid']);
+        if($hooksadminid[$identifier]) {
+            @include_once DISCUZ_ROOT.'./source/plugin/'.$include.'.class.php';
+        }
+    }
+    if(@is_array($_G['setting'][HOOKTYPE][$hscript][$script][$type])) {
+        $_G['inhookscript'] = true;
+        $funcs = !$func ? $_G['setting'][HOOKTYPE][$hscript][$script][$type] : array($func => $_G['setting'][HOOKTYPE][$hscript][$script][$type][$func]);
+        foreach($funcs as $hookkey => $hookfuncs) {
+            foreach($hookfuncs as $hookfunc) {
+                if($hooksadminid[$hookfunc[0]]) {
+                    $classkey = (HOOKTYPE != 'hookscriptmobile' ? '' : 'mobile').'plugin_'.($hookfunc[0].($hscript != 'global' ? '_'.$hscript : ''));
+                    if(!class_exists($classkey, false)) {
+                        continue;
+                    }
+                    if(!isset($pluginclasses[$classkey])) {
+                        $pluginclasses[$classkey] = new $classkey;
+                    }
+                    if(!method_exists($pluginclasses[$classkey], $hookfunc[1])) {
+                        continue;
+                    }
+                    $return = $pluginclasses[$classkey]->$hookfunc[1]($param);
+
+                    if(substr($hookkey, -7) == '_extend' && !empty($_G['setting']['pluginhooks'][$hookkey])) {
+                        continue;
+                    }
+
+                    if(is_array($return)) {
+                        if(!isset($_G['setting']['pluginhooks'][$hookkey]) || is_array($_G['setting']['pluginhooks'][$hookkey])) {
+                            foreach($return as $k => $v) {
+                                $_G['setting']['pluginhooks'][$hookkey][$k] .= $v;
+                            }
+                        } else {
+                            foreach($return as $k => $v) {
+                                $_G['setting']['pluginhooks'][$hookkey][$k] = $v;
+                            }
+                        }
+                    } else {
+                        if(!is_array($_G['setting']['pluginhooks'][$hookkey])) {
+                            $_G['setting']['pluginhooks'][$hookkey] .= $return;
+                        } else {
+                            foreach($_G['setting']['pluginhooks'][$hookkey] as $k => $v) {
+                                $_G['setting']['pluginhooks'][$hookkey][$k] .= $return;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    $_G['inhookscript'] = false;
+}
+
 
 ?>
