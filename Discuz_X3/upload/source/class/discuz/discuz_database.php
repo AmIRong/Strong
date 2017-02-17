@@ -167,6 +167,24 @@ class discuz_database {
 	    return $ret ? $ret : array();
 	}
 	
+	public static function insert($table, $data, $return_insert_id = false, $replace = false, $silent = false) {
+	    $sql = self::implode($data);
+	    $cmd = $replace ? 'REPLACE INTO' : 'INSERT INTO';
+	    $table = self::table($table);
+	    $silent = $silent ? 'SILENT' : '';
+	    return self::query("$cmd $table SET $sql", null, $silent, !$return_insert_id);
+	}
+	
+	public static function implode($array, $glue = ',') {
+	    $sql = $comma = '';
+	    $glue = ' ' . trim($glue) . ' ';
+	    foreach ($array as $k => $v) {
+	        $sql .= $comma . self::quote_field($k) . '=' . self::quote($v);
+	        $comma = $glue;
+	    }
+	    return $sql;
+	}
+	
 }
 	
 class discuz_database_safecheck {
@@ -294,4 +312,6 @@ class discuz_database_safecheck {
 	
 	    return 1;
 	}
+
+
 }
